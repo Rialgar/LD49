@@ -1,9 +1,10 @@
 window.addEventListener('load', () => {
-    console.log('loaded');
-    const game = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    game.id = 'game';
-    game.setAttribute("viewBox", '0 0 1600 900');
-    document.body.appendChild(game);
+    let boom = false;
+
+    const game = document.getElementById('game');
+    game.setAttribute('viewBox', '0 0 1600 900');
+
+    const scoreElement = document.getElementById('score');
 
     let scale = 1;
     function resize(){
@@ -23,10 +24,26 @@ window.addEventListener('load', () => {
         game.style.left = gameLeft + 'px';
         game.style.top = gameTop + 'px';
 
-        console.log()
+        document.body.style.fontSize = `${1/scale * 50}px`;
     }
     window.addEventListener('resize', resize);
     resize();
+
+    const overlay = document.getElementById('overlay');
+    const titleEL = document.getElementById('title');
+    const contentEl = document.getElementById('content');
+
+    let messageCb = () => {};
+    function showMessage(title, message, cb) {
+        overlay.style.display = 'block';
+        titleEL.textContent = title;
+        contentEl.textContent = message;
+        if(cb){messageCb = cb};
+    }
+    document.getElementById('messageBtn').addEventListener('click', () => {
+        overlay.style.display = 'none';
+        messageCb();
+    })
 
     const sounds = {
         connect: new Howl({src: 'sounds/connect2.wav'})
@@ -34,15 +51,15 @@ window.addEventListener('load', () => {
 
     let grabbed = null;
 
-    const grab = (pair, position, element) => (ev) => {
-        if(!grabbed && !pair.resolving){
+    const grab = (pair, position, element, isTouch) => (ev) => {
+        if(!boom && !grabbed && !pair.resolving){
             element.classList.add('dragging');
             grabbed = {
                 pair, position, element,
-                x: ev.clientX,
-                y: ev.clientY
+                x: (isTouch ? ev.changedTouches[0] : ev).clientX,
+                y: (isTouch ? ev.changedTouches[0] : ev).clientY
             };
-
+            ev.preventDefault();
         }
     }
 
@@ -50,22 +67,23 @@ window.addEventListener('load', () => {
         if(grabbed){
             grabbed.element.classList.remove('dragging');
             grabbed = null;
+            ev && ev.preventDefault();
         }
     }
 
-    const drag = (ev) => {
-        if(grabbed){
-            const mx = ev.clientX - grabbed.x;
-            const my = ev.clientY - grabbed.y;
+    const drag = isTouch => (ev) => {
+        if(!boom && grabbed){
+            const mx = (isTouch ? ev.changedTouches[0] : ev).clientX - grabbed.x;
+            const my = (isTouch ? ev.changedTouches[0] : ev).clientY - grabbed.y;
             grabbed.position.x += mx * scale;
             grabbed.position.y += my * scale;
-            grabbed.x = ev.clientX;
-            grabbed.y = ev.clientY;
+            grabbed.x = (isTouch ? ev.changedTouches[0] : ev).clientX;
+            grabbed.y = (isTouch ? ev.changedTouches[0] : ev).clientY;
 
             const dx = grabbed.pair.leftPos.x - grabbed.pair.rightPos.x;
             const dy = grabbed.pair.leftPos.y - grabbed.pair.rightPos.y;
             const distanceSq = dx*dx + dy*dy;
-            if(distanceSq < 400){
+            if(distanceSq < 900){
                 grabbed.pair.leftPos.x -= dx/2;
                 grabbed.pair.rightPos.x += dx/2;
                 grabbed.pair.leftPos.y -= dy/2;
@@ -75,11 +93,14 @@ window.addEventListener('load', () => {
                 sounds.connect.play();
                 release();
             }
+            ev.preventDefault();
         }
     }
 
-    game.addEventListener('mousemove', drag)
+    game.addEventListener('mousemove', drag())
+    game.addEventListener('touchmove', drag(true))
     game.addEventListener('mouseup', release)
+    game.addEventListener('touchend', release)
 
     const r = 50;    
     const d = r/2;
@@ -92,39 +113,37 @@ window.addEventListener('load', () => {
     const cracks = [
         `L 0 ${r}`,
 
-        //singles
-        `L 0 -${d} L -${d} 0 L 0 ${d} L 0 ${r}`,
-        `L 0 -${d} L ${d} 0 L 0 ${d} L 0 ${r}`,
-        
-        `L 0 -${d} L -${d} -${d} L -${d} ${d} L 0 ${d} L 0 ${r}`,
-        `L 0 -${d} L ${d} -${d} L ${d} ${d} L 0 ${d} L 0 ${r}`,
-        
+        //singles left
+        `L 0 -${d} L -${d} 0 L 0 ${d} L 0 ${r}`,    
+        `L 0 -${d} L -${d} -${d} L -${d} ${d} L 0 ${d} L 0 ${r}`,        
         `L 0 -${d} A ${d} ${d} 180 1 0 0 ${d} L 0 ${r}`,
+        
+        //doubles left
+        `L 0 -${o} L -${p} -${m} L 0 -${c} L 0 ${c} L -${p} ${m} L 0 ${o} L 0 ${r}`,
+        `L 0 -${o} L -${p} -${o} L -${p} -${c} L 0 -${c} L 0 ${c} L -${p} ${c} L -${p} ${o} L 0 ${o} L 0 ${r}`,        
+        `L 0 -${o} A ${c} ${c} 180 1 0 0 -${c} L 0 ${c} A ${c} ${c} 180 1 0 0 ${o} L 0 ${r}`,        
+
+        //singles right
+        `L 0 -${d} L ${d} 0 L 0 ${d} L 0 ${r}`,
+        `L 0 -${d} L ${d} -${d} L ${d} ${d} L 0 ${d} L 0 ${r}`,
         `L 0 -${d} A ${d} ${d} 180 1 1 0 ${d} L 0 ${r}`,
 
-        //doubles
-        `L 0 -${o} L -${p} -${m} L 0 -${c} L 0 ${c} L -${p} ${m} L 0 ${o} L 0 ${r}`,
+        //doubles right
         `L 0 -${o} L ${p} -${m} L 0 -${c} L 0 ${c} L ${p} ${m} L 0 ${o} L 0 ${r}`,
-
-        `L 0 -${o} L -${p} -${o} L -${p} -${c} L 0 -${c} L 0 ${c} L -${p} ${c} L -${p} ${o} L 0 ${o} L 0 ${r}`,
         `L 0 -${o} L ${p} -${o} L ${p} -${c} L 0 -${c} L 0 ${c} L ${p} ${c} L ${p} ${o} L 0 ${o} L 0 ${r}`,
-
-
-        `L 0 -${o} A ${c} ${c} 180 1 0 0 -${c} L 0 ${c} A ${c} ${c} 180 1 0 0 ${o} L 0 ${r}`,
         `L 0 -${o} A ${c} ${c} 180 1 1 0 -${c} L 0 ${c} A ${c} ${c} 180 1 1 0 ${o} L 0 ${r}`,
 
-        //mixed
+        //doubles mixed
         `L 0 -${o} L -${p} -${m} L 0 -${c} L 0 ${c} L ${p} ${m} L 0 ${o} L 0 ${r}`,
-        `L 0 -${o} L ${p} -${m} L 0 -${c} L 0 ${c} L -${p} ${m} L 0 ${o} L 0 ${r}`,
-
         `L 0 -${o} L -${p} -${o} L -${p} -${c} L 0 -${c} L 0 ${c} L ${p} ${c} L ${p} ${o} L 0 ${o} L 0 ${r}`,
-        `L 0 -${o} L ${p} -${o} L ${p} -${c} L 0 -${c} L 0 ${c} L -${p} ${c} L -${p} ${o} L 0 ${o} L 0 ${r}`,
-
         `L 0 -${o} A ${c} ${c} 180 1 0 0 -${c} L 0 ${c} A ${c} ${c} 180 1 1 0 ${o} L 0 ${r}`,
+
+        `L 0 -${o} L ${p} -${m} L 0 -${c} L 0 ${c} L -${p} ${m} L 0 ${o} L 0 ${r}`,
+        `L 0 -${o} L ${p} -${o} L ${p} -${c} L 0 -${c} L 0 ${c} L -${p} ${c} L -${p} ${o} L 0 ${o} L 0 ${r}`,
         `L 0 -${o} A ${c} ${c} 180 1 1 0 -${c} L 0 ${c} A ${c} ${c} 180 1 0 0 ${o} L 0 ${r}`,
     ]
 
-    let maxTimer = 10000;
+    const maxTimer = 15000;
     let firstPair = true;
     let pairs = [];
     function spawnPair(index) {                
@@ -172,12 +191,15 @@ window.addEventListener('load', () => {
             rightPos: rightPos,
             group,
             index,
-            timer: maxTimer
+            timer: maxTimer,
+            color: Math.floor(Math.random() * 256)
         }
         pairs.push(pair);
 
         left.addEventListener('mousedown', grab(pair, pair.leftPos, left));
+        left.addEventListener('touchstart', grab(pair, pair.leftPos, left, true));
         right.addEventListener('mousedown', grab(pair, pair.rightPos, right));
+        right.addEventListener('touchstart', grab(pair, pair.rightPos, right, true));
 
         firstPair = false;
     }
@@ -196,10 +218,15 @@ window.addEventListener('load', () => {
         lastTime = time;
         if(matchCount >= 10){
             matchCount -= 10;
+            if(pairs.length >= cracks.length){
+                showMessage('You won!.', `I have no idea how you did it, but you managed to keep up with all the shapes I made. Your score was ${score}.`, ()=>{
+                    window.location.reload();
+                })
+                return;
+            }
             spawnPair(pairs.length);
         }
-        let boom = false;
-        pairs.forEach(pair => {
+        pairs.forEach(pair => {            
             if(pair.resolving > 0){
                     const scale = Math.sqrt(pair.resolving);
                     pair.left.setAttribute('transform', `translate(${pair.leftPos.x} ${pair.leftPos.y}) scale(${scale}) `);
@@ -207,7 +234,8 @@ window.addEventListener('load', () => {
                     pair.resolving -= delta/1000;
             } else {
                 if (pair.resolving <= 0) {
-                    score += 1;
+                    score += Math.round(pair.timer);
+                    scoreElement.textContent = score;
                     matchCount += 1;
 
                     pair.leftPos.x = Math.random()*1400 + 100;
@@ -220,14 +248,17 @@ window.addEventListener('load', () => {
 
                     delete pair.resolving;
                 } else if (pair.timer <= 0){
-                    console.log('Boom');
+                    release();
                     boom = true;
+                    showMessage('You lost.', `The unstable halves exploded before you recombined them. Your score was ${score}.`, ()=>{
+                        window.location.reload();
+                    })
                 } else {
                     pair.timer -= delta;
                 }
                 const timeFactor = (maxTimer - pair.timer)/maxTimer;
                 const shakeRadius = 10 * timeFactor;
-                pair.group.style.fill = `hsl(0 0% ${timeFactor*100}%)`;
+                pair.group.style.fill = `hsl(${pair.color} 100% ${timeFactor*100}%)`;
 
                 pair.left.setAttribute('transform', `translate(${shake(pair.leftPos.x, shakeRadius)} ${shake(pair.leftPos.y, shakeRadius)})`);
                 pair.right.setAttribute('transform', `translate(${shake(pair.rightPos.x, shakeRadius)} ${shake(pair.rightPos.y, shakeRadius)})`);
