@@ -28,6 +28,10 @@ window.addEventListener('load', () => {
     window.addEventListener('resize', resize);
     resize();
 
+    const sounds = {
+        connect: new Howl({src: 'sounds/connect2.wav'})
+    }
+
     let grabbed = null;
 
     const grab = (pair, position, element) => (ev) => {
@@ -68,6 +72,7 @@ window.addEventListener('load', () => {
                 grabbed.pair.rightPos.y += dy/2;
 
                 grabbed.pair.resolving = 1;
+                sounds.connect.play();
                 release();
             }
         }
@@ -76,25 +81,60 @@ window.addEventListener('load', () => {
     game.addEventListener('mousemove', drag)
     game.addEventListener('mouseup', release)
 
-    const r = 50;
-    const d1 = 25
+    const r = 50;    
+    const d = r/2;
+
+    const c = r/6;
+    const p = r - 3*c
+    const o = r - 2*c;
+    const m = (c+o)/2;
 
     const cracks = [
         `L 0 ${r}`,
-        `L 0 -${d1} L -${d1} 0 L 0 ${d1} L 0 ${r}`,
-        `L 0 -${d1} L ${d1} 0 L 0 ${d1} L 0 ${r}`,
-        `L 0 -${d1} L -${d1} -${d1} L -${d1} ${d1} L 0 ${d1} L 0 ${r}`,
-        `L 0 -${d1} L ${d1} -${d1} L ${d1} ${d1} L 0 ${d1} L 0 ${r}`,
+
+        //singles
+        `L 0 -${d} L -${d} 0 L 0 ${d} L 0 ${r}`,
+        `L 0 -${d} L ${d} 0 L 0 ${d} L 0 ${r}`,
+        
+        `L 0 -${d} L -${d} -${d} L -${d} ${d} L 0 ${d} L 0 ${r}`,
+        `L 0 -${d} L ${d} -${d} L ${d} ${d} L 0 ${d} L 0 ${r}`,
+        
+        `L 0 -${d} A ${d} ${d} 180 1 0 0 ${d} L 0 ${r}`,
+        `L 0 -${d} A ${d} ${d} 180 1 1 0 ${d} L 0 ${r}`,
+
+        //doubles
+        `L 0 -${o} L -${p} -${m} L 0 -${c} L 0 ${c} L -${p} ${m} L 0 ${o} L 0 ${r}`,
+        `L 0 -${o} L ${p} -${m} L 0 -${c} L 0 ${c} L ${p} ${m} L 0 ${o} L 0 ${r}`,
+
+        `L 0 -${o} L -${p} -${o} L -${p} -${c} L 0 -${c} L 0 ${c} L -${p} ${c} L -${p} ${o} L 0 ${o} L 0 ${r}`,
+        `L 0 -${o} L ${p} -${o} L ${p} -${c} L 0 -${c} L 0 ${c} L ${p} ${c} L ${p} ${o} L 0 ${o} L 0 ${r}`,
+
+
+        `L 0 -${o} A ${c} ${c} 180 1 0 0 -${c} L 0 ${c} A ${c} ${c} 180 1 0 0 ${o} L 0 ${r}`,
+        `L 0 -${o} A ${c} ${c} 180 1 1 0 -${c} L 0 ${c} A ${c} ${c} 180 1 1 0 ${o} L 0 ${r}`,
+
+        //mixed
+        `L 0 -${o} L -${p} -${m} L 0 -${c} L 0 ${c} L ${p} ${m} L 0 ${o} L 0 ${r}`,
+        `L 0 -${o} L ${p} -${m} L 0 -${c} L 0 ${c} L -${p} ${m} L 0 ${o} L 0 ${r}`,
+
+        `L 0 -${o} L -${p} -${o} L -${p} -${c} L 0 -${c} L 0 ${c} L ${p} ${c} L ${p} ${o} L 0 ${o} L 0 ${r}`,
+        `L 0 -${o} L ${p} -${o} L ${p} -${c} L 0 -${c} L 0 ${c} L -${p} ${c} L -${p} ${o} L 0 ${o} L 0 ${r}`,
+
+        `L 0 -${o} A ${c} ${c} 180 1 0 0 -${c} L 0 ${c} A ${c} ${c} 180 1 1 0 ${o} L 0 ${r}`,
+        `L 0 -${o} A ${c} ${c} 180 1 1 0 -${c} L 0 ${c} A ${c} ${c} 180 1 0 0 ${o} L 0 ${r}`,
     ]
+
+    let maxTimer = 10000;
     let firstPair = true;
     let pairs = [];
-    function spawnPair(index) {
+    function spawnPair(index) {                
         const crack = cracks[index];
+        const b = 20;
 
         const leftPos = firstPair ? {x: 700, y: 450} : {x: Math.random()*1400 + 100, y: Math.random()*600 + 100};
 
         const leftHidden = document.createElementNS('http://www.w3.org/2000/svg', 'path'); 
-        leftHidden.setAttribute('d', `M 0 -${r} L 0 ${r} A ${r} ${r} 180 1 1 0 -${r} z`);
+        leftHidden.setAttribute('d', `M ${b} -${r+b} L ${b} ${r+b} A ${r+2*b} ${r+b} 180 1 1 ${b} -${r+b} z`);
         leftHidden.classList.add('hidden');
         const leftPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         leftPath.setAttribute('d', `M 0 -${r} ${crack} A ${r} ${r} 180 1 1 0 -${r} z`);
@@ -107,8 +147,8 @@ window.addEventListener('load', () => {
 
         const rightPos = firstPair ? {x: 900, y: 450} : {x: Math.random()*1400 + 100, y: Math.random()*600 + 100};
 
-        const rightHidden = document.createElementNS('http://www.w3.org/2000/svg', 'path'); 
-        rightHidden.setAttribute('d', `M 0 ${r} A ${r} ${r} 180 1 0 0 -${r} L 0 ${r} z`);
+        const rightHidden = document.createElementNS('http://www.w3.org/2000/svg', 'path');         
+        rightHidden.setAttribute('d', `M -${b} ${r+b} A ${r+2*b} ${r+b} 180 1 0 -${b} -${r+b} L -${b} ${r+b} z`);
         rightHidden.classList.add('hidden');
         const rightPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         rightPath.setAttribute('d', `M 0 ${r} A ${r} ${r} 180 1 0 0 -${r} ${crack} z`);
@@ -130,7 +170,9 @@ window.addEventListener('load', () => {
             leftPos,
             right,
             rightPos: rightPos,
-            group
+            group,
+            index,
+            timer: maxTimer
         }
         pairs.push(pair);
 
@@ -139,36 +181,61 @@ window.addEventListener('load', () => {
 
         firstPair = false;
     }
+    spawnPair(0);
 
-    let last = 0;
-    let pairCount = 0;
+    function shake(pos, radius){
+        return pos + Math.random() * radius - radius;
+    }
+
+    let matchCount = 0;
+    let score = 0;
+
+    let lastTime = 0;
     function animationFrame(time){
-        const delta = time - last;
-        last = time;
-        if(pairs.length === 0){
-            pairCount++;
-            for(let i = 0; i < pairCount; i++){
-                spawnPair(i);
-            }
+        const delta = time - lastTime;
+        lastTime = time;
+        if(matchCount >= 10){
+            matchCount -= 10;
+            spawnPair(pairs.length);
         }
-        pairs = pairs.filter(pair => {            
-            if(pair.resolving !== undefined){
-                if(pair.resolving > 0){
+        let boom = false;
+        pairs.forEach(pair => {
+            if(pair.resolving > 0){
                     const scale = Math.sqrt(pair.resolving);
                     pair.left.setAttribute('transform', `translate(${pair.leftPos.x} ${pair.leftPos.y}) scale(${scale}) `);
                     pair.right.setAttribute('transform', `translate(${pair.rightPos.x} ${pair.rightPos.y}) scale(${scale})`);
                     pair.resolving -= delta/1000;
-                } else {
-                    game.removeChild(pair.group);
-                    return false
-                }
             } else {
-                pair.left.setAttribute('transform', `translate(${pair.leftPos.x} ${pair.leftPos.y})`);
-                pair.right.setAttribute('transform', `translate(${pair.rightPos.x} ${pair.rightPos.y})`);
+                if (pair.resolving <= 0) {
+                    score += 1;
+                    matchCount += 1;
+
+                    pair.leftPos.x = Math.random()*1400 + 100;
+                    pair.leftPos.y = Math.random()*600 + 100;
+
+                    pair.rightPos.x = Math.random()*1400 + 100;
+                    pair.rightPos.y = Math.random()*600 + 100;
+
+                    pair.timer = maxTimer;
+
+                    delete pair.resolving;
+                } else if (pair.timer <= 0){
+                    console.log('Boom');
+                    boom = true;
+                } else {
+                    pair.timer -= delta;
+                }
+                const timeFactor = (maxTimer - pair.timer)/maxTimer;
+                const shakeRadius = 10 * timeFactor;
+                pair.group.style.fill = `hsl(0 0% ${timeFactor*100}%)`;
+
+                pair.left.setAttribute('transform', `translate(${shake(pair.leftPos.x, shakeRadius)} ${shake(pair.leftPos.y, shakeRadius)})`);
+                pair.right.setAttribute('transform', `translate(${shake(pair.rightPos.x, shakeRadius)} ${shake(pair.rightPos.y, shakeRadius)})`);
             }
-            return true;
-        });        
-        window.requestAnimationFrame(animationFrame);
+        });
+        if(!boom){
+            window.requestAnimationFrame(animationFrame);
+        }
     }
     window.requestAnimationFrame(animationFrame);
 });
